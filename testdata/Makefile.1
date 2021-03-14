@@ -1,4 +1,4 @@
-a: b c
+a: b c test.txt
 	echo a
 
 b: c
@@ -6,3 +6,9 @@ b: c
 
 c:
 	echo c
+	echo multi
+	echo line
+
+test.txt:
+	# Testing comments
+	echo "hello" >test.txt 

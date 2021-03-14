@@ -2,14 +2,16 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"strings"
 
-	_ "github.com/ajstarks/svgo"
 	svg "github.com/ajstarks/svgo"
+	"github.com/goccy/go-graphviz"
+	"github.com/goccy/go-graphviz/cgraph"
 )
 
 func main() {
@@ -19,12 +21,18 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	root := g.GetTarget("<ROOT>")
 	g.GraphScan(root, scanner, 0)
-	g.dump(dot)
+	g.dump(gv)
 }
 
 func targetNameFromLine(line string) string {
 	start := strings.Index(line, "`")
-	end := strings.Index(line, "'")
+	if start == -1 {
+		start = strings.Index(line, "'")
+		if start == -1 {
+			log.Fatal("ohno")
+		}
+	}
+	end := strings.Index(line[start+1:], "'") + start + 1
 	return line[start+1 : end]
 }
 
@@ -47,6 +55,7 @@ func (g *MakesenseGraph) GraphScan(root *target, scanner *bufio.Scanner, level i
 			targetName := targetNameFromLine(trimmedLine)
 			target := g.GetTarget(targetName)
 			target.mustRemake = true
+			target.cmds = parseCommand(getCommands(scanner))
 		} else if strings.HasPrefix(trimmedLine, "Pruning file ") {
 			targetName := targetNameFromLine(trimmedLine)
 			target := g.GetTarget(targetName)
@@ -62,6 +71,28 @@ func (g *MakesenseGraph) GraphScan(root *target, scanner *bufio.Scanner, level i
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getCommands(scanner *bufio.Scanner) []string {
+	toReturn := []string{}
+	for scanner.Scan() {
+		trimmedLine, _ := findIndentAndTrim(scanner.Text())
+		if strings.HasPrefix(trimmedLine, "Successfully remade target file ") {
+			return toReturn
+		}
+		toReturn = append(toReturn, trimmedLine)
+	}
+	return []string{}
+}
+
+func parseCommand(cmds []string) []string {
+	toReturn := []string{}
+	for _, c := range cmds {
+		if !(strings.HasPrefix(c, "Putting child ") || strings.HasPrefix(c, "Removing child ") || strings.HasPrefix(c, "Live child ") || strings.HasPrefix(c, "Reaping winning child ")) {
+			toReturn = append(toReturn, c)
+		}
+	}
+	return toReturn
 }
 
 func burnScanner(scanner *bufio.Scanner, makefileName string) {
@@ -92,6 +123,7 @@ const (
 	none OutputType = iota
 	list
 	dot
+	gv
 	SVG
 	gexf
 )
@@ -104,9 +136,60 @@ func (g MakesenseGraph) dump(o OutputType) {
 		g.dumpDot(os.Stdout)
 	case SVG:
 		g.dumpSvg(os.Stdout)
+	case gv:
+		g.dumpGv(os.Stdout)
 	default:
 		return
 	}
+}
+
+func (m MakesenseGraph) dumpGv(w io.Writer) {
+	g := graphviz.New()
+	graph, err := g.Graph(graphviz.Directed)
+	if err != nil {
+		log.Fatal(err)
+	}
+	idToNode := map[string]*cgraph.Node{}
+	for k, v := range m.targets {
+		nodeId := fmt.Sprintf("n%d", v.id)
+		if k == "<ROOT>" {
+			n, err := graph.CreateNode(nodeId)
+			if err != nil {
+				log.Fatal(err)
+			}
+			n.SetLabel("root")
+			n.SetShape("point")
+			idToNode["<ROOT>"] = n
+		} else {
+			n, err := graph.CreateNode(nodeId)
+			if err != nil {
+				log.Fatal(err)
+			}
+			n.SetLabel(v.name)
+			n.SetShape("circle")
+			n.SetTooltip(strings.Join(v.cmds, "\n"))
+			if v.mustRemake {
+				n.SetColor("red")
+			} else {
+				n.SetColor("green")
+			}
+			idToNode[v.name] = n
+		}
+	}
+	for _, v := range m.targets {
+		for _, cv := range v.children {
+			_, err := graph.CreateEdge("", idToNode[cv.name], idToNode[v.name])
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
+	graph.SetLayout(string(graphviz.DOT))
+	var buf bytes.Buffer
+	if err := g.Render(graph, graphviz.SVG, &buf); err != nil {
+		log.Fatal(err)
+	}
+	w.Write(buf.Bytes())
 }
 
 func (g MakesenseGraph) dumpList(w io.Writer) {
@@ -143,6 +226,7 @@ type target struct {
 	id         int
 	name       string
 	children   []*target
+	cmds       []string
 	mustRemake bool
 }
 

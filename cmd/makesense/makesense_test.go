@@ -45,6 +45,10 @@ func TestTargetNameFromLine(t *testing.T) {
 			Input:          "Considering target file `my great target'.",
 			ExpectedTarget: "my great target",
 		},
+		{
+			Input:          "Considering target file 'my great target'.",
+			ExpectedTarget: "my great target",
+		},
 	}
 	for _, test := range tests {
 		target := targetNameFromLine(test.Input)
