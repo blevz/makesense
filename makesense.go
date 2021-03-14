@@ -17,7 +17,9 @@ import (
 )
 
 var (
-	outputFlag = flag.String("type", "dot", "The type of output for makesense to produce, supported: [`list`, `dot`, `gviz`]")
+	outputFlag = flag.String("type", "dot", "The type of output for makesense to produce, supported: [`dot`, `list`, `gviz`, `json`]")
+	layoutType = flag.String("layout", "dot", "The layout engine to use when creating a gviz image, supported: [`dot`, `circo`, `fdp`, `neato`, `nop`, `nop1`, `nop2`, `osage`, `patchwork`, `sfdp`, `twopi`]")
+	renderType = flag.String("render", "svg", "The format to render gviz to, supported: [`dot`, `svg`, `png`, `jpg`]")
 )
 
 func main() {
@@ -45,10 +47,10 @@ func targetNameFromLine(line string) string {
 }
 
 func (g *MakesenseGraph) GraphScan(root *target, scanner *bufio.Scanner, level int) {
+	makefileName := ""
 	for scanner.Scan() {
 		line := scanner.Text()
 		trimmedLine, indentLevel := findIndentAndTrim(line)
-		makefileName := ""
 		if strings.HasPrefix(trimmedLine, "Considering target file") {
 			targetName := targetNameFromLine(trimmedLine)
 			if makefileName != "" && targetName == makefileName {
@@ -166,7 +168,7 @@ func (g MakesenseGraph) dump(o OutputType, w io.Writer) {
 	case SVG:
 		g.dumpSvg(w)
 	case gviz:
-		g.dumpGv(w)
+		g.dumpGraphViz(w)
 	case JSON:
 		err := g.dumpJson(w)
 		if err != nil {
@@ -181,7 +183,7 @@ func (m MakesenseGraph) dumpJson(w io.Writer) error {
 	return json.NewEncoder(w).Encode(m)
 }
 
-func (m MakesenseGraph) dumpGv(w io.Writer) {
+func (m MakesenseGraph) dumpGraphViz(w io.Writer) {
 	g := graphviz.New()
 	graph, err := g.Graph(graphviz.Directed)
 	if err != nil {
@@ -222,9 +224,10 @@ func (m MakesenseGraph) dumpGv(w io.Writer) {
 			}
 		}
 	}
-	graph.SetLayout(string(graphviz.DOT))
+	g.SetLayout(graphviz.Layout(*layoutType))
+	renderFormat := graphviz.Format(*renderType)
 	var buf bytes.Buffer
-	if err := g.Render(graph, graphviz.SVG, &buf); err != nil {
+	if err := g.Render(graph, renderFormat, &buf); err != nil {
 		log.Fatal(err)
 	}
 	w.Write(buf.Bytes())
@@ -239,10 +242,14 @@ func (g MakesenseGraph) dumpList(w io.Writer) {
 func (g MakesenseGraph) dumpDot(w io.Writer) {
 	w.Write([]byte("digraph G {\n"))
 	for k, v := range g.Targets {
+		color := "green"
+		if v.MustRemake {
+			color = "red"
+		}
 		if k == "<ROOT>" {
 			w.Write([]byte(fmt.Sprintf("n%d[shape=point, label=\"root\"];\n", v.id)))
 		} else {
-			w.Write([]byte(fmt.Sprintf("n%d[label=\"%s\", color=\"%s\"];\n", v.id, v.Name, "red")))
+			w.Write([]byte(fmt.Sprintf("n%d[label=\"%s\", color=\"%s\"];\n", v.id, v.Name, color)))
 		}
 	}
 	for _, v := range g.Targets {

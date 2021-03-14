@@ -80,11 +80,12 @@ func TestJsonOutput(t *testing.T) {
 					"<ROOT>": map[string]interface{}{
 						"MustRemake": false,
 						"Name":       "<ROOT>",
-						"Children":   []interface{}{"Makefile", "hellomake"},
+						"Children":   []interface{}{"Makefile"},
 					},
 					"Makefile": map[string]interface{}{
 						"MustRemake": false,
 						"Name":       "Makefile",
+						"Children":   []interface{}{"hellomake"},
 					},
 					"hellofunc.c": map[string]interface{}{
 						"MustRemake": false,
@@ -126,9 +127,10 @@ func TestJsonOutput(t *testing.T) {
 					"<ROOT>": map[string]interface{}{
 						"MustRemake": false,
 						"Name":       "<ROOT>",
-						"Children":   []interface{}{"Makefile", "a"},
+						"Children":   []interface{}{"Makefile"},
 					},
 					"Makefile": map[string]interface{}{
+						"Children":   []interface{}{"a"},
 						"MustRemake": false,
 						"Name":       "Makefile",
 					},
@@ -174,7 +176,7 @@ func TestJsonOutput(t *testing.T) {
 		g.dump(JSON, &b)
 		var m map[string]interface{}
 		json.NewDecoder(strings.NewReader(b.String())).Decode(&m)
-		if diff := cmp.Diff(m, test.ExpectedTarget); diff != "" {
+		if diff := cmp.Diff(test.ExpectedTarget, m); diff != "" {
 			t.Errorf("Diff: %s", diff)
 		}
 	}
