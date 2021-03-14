@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -22,13 +23,13 @@ var (
 func main() {
 	flag.Parse()
 	g := &MakesenseGraph{
-		targets: map[string]*target{},
+		Targets: map[string]*target{},
 	}
 	scanner := bufio.NewScanner(os.Stdin)
 	root := g.GetTarget("<ROOT>")
 	g.GraphScan(root, scanner, 0)
 	outputType := stringToOutputType[*outputFlag]
-	g.dump(outputType)
+	g.dump(outputType, os.Stdout)
 }
 
 func targetNameFromLine(line string) string {
@@ -61,16 +62,16 @@ func (g *MakesenseGraph) GraphScan(root *target, scanner *bufio.Scanner, level i
 		} else if strings.HasPrefix(trimmedLine, "Must remake target ") {
 			targetName := targetNameFromLine(trimmedLine)
 			target := g.GetTarget(targetName)
-			target.mustRemake = true
-			target.cmds = parseCommand(getCommands(scanner))
+			target.MustRemake = true
+			target.Cmds = parseCommand(getCommands(scanner))
 		} else if strings.HasPrefix(trimmedLine, "Pruning file ") {
 			targetName := targetNameFromLine(trimmedLine)
 			target := g.GetTarget(targetName)
 			root.AddChildren(target)
 		} else if (strings.HasPrefix(trimmedLine, "Finished prerequisites of target file ") || strings.HasSuffix(trimmedLine, "was considered already.")) && level+1 >= indentLevel {
 			targetName := targetNameFromLine(trimmedLine)
-			if targetName != root.name {
-				os.Stderr.WriteString(fmt.Sprintf("expected `%s` got `%s`\n", root.name, trimmedLine))
+			if targetName != root.Name {
+				os.Stderr.WriteString(fmt.Sprintf("expected `%s` got `%s`\n", root.Name, trimmedLine))
 			}
 			break
 		}
@@ -132,6 +133,7 @@ const (
 	dot
 	gviz
 	SVG
+	JSON
 	gexf
 )
 
@@ -141,6 +143,7 @@ var stringToOutputType = map[string]OutputType{
 	"gv":   gviz,
 	"svg":  SVG,
 	"gexf": gexf,
+	"json": JSON,
 }
 
 func (o OutputType) String() string {
@@ -152,19 +155,28 @@ func (o OutputType) String() string {
 	return ""
 }
 
-func (g MakesenseGraph) dump(o OutputType) {
+func (g MakesenseGraph) dump(o OutputType, w io.Writer) {
 	switch o {
 	case list:
-		g.dumpList(os.Stdout)
+		g.dumpList(w)
 	case dot:
-		g.dumpDot(os.Stdout)
+		g.dumpDot(w)
 	case SVG:
-		g.dumpSvg(os.Stdout)
+		g.dumpSvg(w)
 	case gviz:
-		g.dumpGv(os.Stdout)
+		g.dumpGv(w)
+	case JSON:
+		err := g.dumpJson(w)
+		if err != nil {
+			log.Fatal(err)
+		}
 	default:
 		return
 	}
+}
+
+func (m MakesenseGraph) dumpJson(w io.Writer) error {
+	return json.NewEncoder(w).Encode(m)
 }
 
 func (m MakesenseGraph) dumpGv(w io.Writer) {
@@ -174,7 +186,7 @@ func (m MakesenseGraph) dumpGv(w io.Writer) {
 		log.Fatal(err)
 	}
 	idToNode := map[string]*cgraph.Node{}
-	for k, v := range m.targets {
+	for k, v := range m.Targets {
 		nodeId := fmt.Sprintf("n%d", v.id)
 		if k == "<ROOT>" {
 			n, err := graph.CreateNode(nodeId)
@@ -189,20 +201,20 @@ func (m MakesenseGraph) dumpGv(w io.Writer) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			n.SetLabel(v.name)
+			n.SetLabel(v.Name)
 			n.SetShape("circle")
-			n.SetTooltip(strings.Join(v.cmds, "\n"))
-			if v.mustRemake {
+			n.SetTooltip(strings.Join(v.Cmds, "\n"))
+			if v.MustRemake {
 				n.SetColor("red")
 			} else {
 				n.SetColor("green")
 			}
-			idToNode[v.name] = n
+			idToNode[v.Name] = n
 		}
 	}
-	for _, v := range m.targets {
+	for _, v := range m.Targets {
 		for _, cv := range v.children {
-			_, err := graph.CreateEdge("", idToNode[cv.name], idToNode[v.name])
+			_, err := graph.CreateEdge("", idToNode[cv.Name], idToNode[v.Name])
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -217,21 +229,21 @@ func (m MakesenseGraph) dumpGv(w io.Writer) {
 }
 
 func (g MakesenseGraph) dumpList(w io.Writer) {
-	for _, t := range g.targets {
-		w.Write([]byte(fmt.Sprintf("%s\n", t.name)))
+	for _, t := range g.Targets {
+		w.Write([]byte(fmt.Sprintf("%s\n", t.Name)))
 	}
 }
 
 func (g MakesenseGraph) dumpDot(w io.Writer) {
 	w.Write([]byte("digraph G {\n"))
-	for k, v := range g.targets {
+	for k, v := range g.Targets {
 		if k == "<ROOT>" {
 			w.Write([]byte(fmt.Sprintf("n%d[shape=point, label=\"root\"];\n", v.id)))
 		} else {
-			w.Write([]byte(fmt.Sprintf("n%d[label=\"%s\", color=\"%s\"];\n", v.id, v.name, "red")))
+			w.Write([]byte(fmt.Sprintf("n%d[label=\"%s\", color=\"%s\"];\n", v.id, v.Name, "red")))
 		}
 	}
-	for _, v := range g.targets {
+	for _, v := range g.Targets {
 		for _, cv := range v.children {
 			w.Write([]byte(fmt.Sprintf("n%d -> n%d ; \n", cv.id, v.id)))
 		}
@@ -248,10 +260,10 @@ func (g MakesenseGraph) dumpSvg(w io.Writer) {
 
 type target struct {
 	id         int
-	name       string
+	Name       string ``
 	children   []*target
-	cmds       []string
-	mustRemake bool
+	Cmds       []string `json:",omitempty"`
+	MustRemake bool     ``
 }
 
 func (root *target) AddChildren(t *target) {
@@ -259,18 +271,18 @@ func (root *target) AddChildren(t *target) {
 }
 
 type MakesenseGraph struct {
-	targets    map[string]*target
+	Targets    map[string]*target `json="targets"`
 	nextUnique int
 }
 
 func (m *MakesenseGraph) GetTarget(name string) *target {
-	if t, exists := m.targets[name]; exists {
+	if t, exists := m.Targets[name]; exists {
 		return t
 	}
-	m.targets[name] = &target{
-		name: name,
+	m.Targets[name] = &target{
+		Name: name,
 		id:   m.nextUnique,
 	}
 	m.nextUnique++
-	return m.targets[name]
+	return m.Targets[name]
 }

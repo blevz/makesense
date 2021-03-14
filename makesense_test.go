@@ -1,6 +1,15 @@
 package main
 
-import "testing"
+import (
+	"bufio"
+	"bytes"
+	"encoding/json"
+	"os/exec"
+	"strings"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+)
 
 func TestIndentAndTrim(t *testing.T) {
 	type IndentAndTrimTest struct {
@@ -54,6 +63,112 @@ func TestTargetNameFromLine(t *testing.T) {
 		target := targetNameFromLine(test.Input)
 		if target != test.ExpectedTarget {
 			t.Errorf("Target should be `%s` was `%s`", test.ExpectedTarget, target)
+		}
+	}
+}
+
+func TestJsonOutput(t *testing.T) {
+	type JsonOutputTest struct {
+		Input          string
+		ExpectedTarget map[string]interface{}
+	}
+	tests := []JsonOutputTest{
+		{
+			Input: "testdata/c",
+			ExpectedTarget: map[string]interface{}{
+				"Targets": map[string]interface{}{
+					"<ROOT>": map[string]interface{}{
+						"MustRemake": false,
+						"Name":       "<ROOT>",
+					},
+					"Makefile": map[string]interface{}{
+						"MustRemake": false,
+						"Name":       "Makefile",
+					},
+					"hellofunc.c": map[string]interface{}{
+						"MustRemake": false,
+						"Name":       "hellofunc.c",
+					},
+					"hellofunc.o": map[string]interface{}{
+						"Cmds":       []interface{}{"gcc -c -o hellofunc.o hellofunc.c -I."},
+						"MustRemake": true,
+						"Name":       "hellofunc.o",
+					},
+					"hellomake": map[string]interface{}{
+						"Cmds":       []interface{}{"gcc -o hellomake hellomake.o hellofunc.o -I."},
+						"MustRemake": true,
+						"Name":       "hellomake",
+					},
+					"hellomake.c": map[string]interface{}{
+						"MustRemake": false,
+						"Name":       "hellomake.c",
+					},
+					"hellomake.h": map[string]interface{}{
+						"MustRemake": false,
+						"Name":       "hellomake.h",
+					},
+					"hellomake.o": map[string]interface{}{
+						"Cmds":       []interface{}{"gcc -c -o hellomake.o hellomake.c -I."},
+						"MustRemake": true,
+						"Name":       "hellomake.o",
+					},
+				},
+			},
+		},
+		{
+			Input: "testdata/basic",
+			ExpectedTarget: map[string]interface{}{
+				"Targets": map[string]interface{}{
+					"<ROOT>": map[string]interface{}{
+						"MustRemake": false,
+						"Name":       "<ROOT>",
+					},
+					"Makefile": map[string]interface{}{
+						"MustRemake": false,
+						"Name":       "Makefile",
+					},
+					"a": map[string]interface{}{
+						"Cmds":       []interface{}{"echo a"},
+						"MustRemake": true,
+						"Name":       "a",
+					},
+					"b": map[string]interface{}{
+						"Cmds":       []interface{}{"echo b"},
+						"MustRemake": true,
+						"Name":       "b",
+					},
+					"c": map[string]interface{}{
+						"Cmds":       []interface{}{"echo c", "echo multi", "echo line"},
+						"MustRemake": true,
+						"Name":       "c",
+					},
+					"test.txt": map[string]interface{}{
+						"Cmds":       []interface{}{"# Testing comments", "echo \"hello\" >test.txt "},
+						"MustRemake": true,
+						"Name":       "test.txt",
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		output, err := exec.Command("make", "-C", test.Input, "-Bnd").CombinedOutput()
+		if err != nil {
+			t.Error(string(output))
+			t.Fatal(err)
+		}
+		g := &MakesenseGraph{
+			Targets: map[string]*target{},
+		}
+		scanner := bufio.NewScanner(bytes.NewReader(output))
+		root := g.GetTarget("<ROOT>")
+		g.GraphScan(root, scanner, 0)
+		var b strings.Builder
+		g.dump(JSON, &b)
+		var m map[string]interface{}
+		json.NewDecoder(strings.NewReader(b.String())).Decode(&m)
+		if diff := cmp.Diff(m, test.ExpectedTarget); diff != "" {
+			t.Errorf("Diff: %s", diff)
 		}
 	}
 }
