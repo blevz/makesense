@@ -74,6 +74,8 @@ func (g *MakesenseGraph) GraphScan(root *target, scanner *bufio.Scanner, level i
 				os.Stderr.WriteString(fmt.Sprintf("expected `%s` got `%s`\n", root.Name, trimmedLine))
 			}
 			break
+		} else if strings.HasPrefix(trimmedLine, "Reading makefile ") {
+			makefileName = targetNameFromLine(trimmedLine)
 		}
 	}
 	if err := scanner.Err(); err != nil {

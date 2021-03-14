@@ -1,4 +1,6 @@
-all: assets/basic.svg assets/c.svg assets/basic.png assets/c.png assets/this.png assets/this.svg build test
+all:: assets/basic.svg assets/c.svg assets/basic.png assets/c.png assets/this.png build test
+
+include makesense.mk
 
 assets: build
 	mkdir -p assets
@@ -8,9 +10,6 @@ assets/basic.svg: assets makesense
 
 assets/c.svg: assets makesense
 	make -C testdata/c -Bnd | ./makesense --type gv > assets/c.svg
-
-assets/this.svg: assets makesense
-	make -Bnd | ./makesense --type gv > assets/this.svg
 
 assets/basic.png: assets makesense
 	make -C testdata/basic -Bnd | ./makesense --type dot | dot -Tpng -o assets/basic.png
@@ -29,6 +28,6 @@ makesense: build
 test:
 	go test ./...
 
-clean:
+clean::
 	rm -rf ./assets
-	rm makesense
+	rm -f makesense

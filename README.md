@@ -14,7 +14,7 @@ Graphviz to svg:
 
 This project's makefile:
 
-![assets/this.svg](assets/this.svg)
+![assets/this.svg](.makesense/make.svg)
 
 Dot:
 
