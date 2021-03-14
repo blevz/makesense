@@ -213,8 +213,8 @@ func (m MakesenseGraph) dumpGv(w io.Writer) {
 		}
 	}
 	for _, v := range m.Targets {
-		for _, cv := range v.children {
-			_, err := graph.CreateEdge("", idToNode[cv.Name], idToNode[v.Name])
+		for _, cv := range v.Children {
+			_, err := graph.CreateEdge("", idToNode[cv], idToNode[v.Name])
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -244,8 +244,8 @@ func (g MakesenseGraph) dumpDot(w io.Writer) {
 		}
 	}
 	for _, v := range g.Targets {
-		for _, cv := range v.children {
-			w.Write([]byte(fmt.Sprintf("n%d -> n%d ; \n", cv.id, v.id)))
+		for _, cv := range v.Children {
+			w.Write([]byte(fmt.Sprintf("n%d -> n%d ; \n", g.Targets[cv].id, v.id)))
 		}
 	}
 	w.Write([]byte("}\n"))
@@ -260,18 +260,18 @@ func (g MakesenseGraph) dumpSvg(w io.Writer) {
 
 type target struct {
 	id         int
-	Name       string ``
-	children   []*target
+	Name       string   ``
+	Children   []string `json:",omitempty"`
 	Cmds       []string `json:",omitempty"`
 	MustRemake bool     ``
 }
 
 func (root *target) AddChildren(t *target) {
-	root.children = append(root.children, t)
+	root.Children = append(root.Children, t.Name)
 }
 
 type MakesenseGraph struct {
-	Targets    map[string]*target `json="targets"`
+	Targets    map[string]*target
 	nextUnique int
 }
 

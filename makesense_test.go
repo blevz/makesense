@@ -80,6 +80,7 @@ func TestJsonOutput(t *testing.T) {
 					"<ROOT>": map[string]interface{}{
 						"MustRemake": false,
 						"Name":       "<ROOT>",
+						"Children":   []interface{}{"Makefile", "hellomake"},
 					},
 					"Makefile": map[string]interface{}{
 						"MustRemake": false,
@@ -90,11 +91,13 @@ func TestJsonOutput(t *testing.T) {
 						"Name":       "hellofunc.c",
 					},
 					"hellofunc.o": map[string]interface{}{
+						"Children":   []interface{}{"hellofunc.c", "hellomake.h"},
 						"Cmds":       []interface{}{"gcc -c -o hellofunc.o hellofunc.c -I."},
 						"MustRemake": true,
 						"Name":       "hellofunc.o",
 					},
 					"hellomake": map[string]interface{}{
+						"Children":   []interface{}{"hellomake.o", "hellofunc.o"},
 						"Cmds":       []interface{}{"gcc -o hellomake hellomake.o hellofunc.o -I."},
 						"MustRemake": true,
 						"Name":       "hellomake",
@@ -108,6 +111,7 @@ func TestJsonOutput(t *testing.T) {
 						"Name":       "hellomake.h",
 					},
 					"hellomake.o": map[string]interface{}{
+						"Children":   []interface{}{"hellomake.c", "hellomake.h"},
 						"Cmds":       []interface{}{"gcc -c -o hellomake.o hellomake.c -I."},
 						"MustRemake": true,
 						"Name":       "hellomake.o",
@@ -122,6 +126,7 @@ func TestJsonOutput(t *testing.T) {
 					"<ROOT>": map[string]interface{}{
 						"MustRemake": false,
 						"Name":       "<ROOT>",
+						"Children":   []interface{}{"Makefile", "a"},
 					},
 					"Makefile": map[string]interface{}{
 						"MustRemake": false,
@@ -131,11 +136,13 @@ func TestJsonOutput(t *testing.T) {
 						"Cmds":       []interface{}{"echo a"},
 						"MustRemake": true,
 						"Name":       "a",
+						"Children":   []interface{}{"b", "c", "test.txt"},
 					},
 					"b": map[string]interface{}{
 						"Cmds":       []interface{}{"echo b"},
 						"MustRemake": true,
 						"Name":       "b",
+						"Children":   []interface{}{"c"},
 					},
 					"c": map[string]interface{}{
 						"Cmds":       []interface{}{"echo c", "echo multi", "echo line"},

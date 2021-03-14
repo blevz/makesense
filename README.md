@@ -12,12 +12,20 @@ Graphviz to svg:
 
 ![assets/c.svg](assets/c.svg)
 
+This project's makefile:
+
+![assets/this.svg](assets/this.svg)
+
 Dot:
 
 `make -C testdata/basic -Bnd | ./makesense --type dot | dot -Tpng -o assets/basic.png`
 
 ![assets/basic.png](assets/basic.png)
 
-`make -C testdata/c -Bnd | ./makesense --type dot > assets/c.png | dot -Tpng -o assets/c.png`
+`make -C testdata/c -Bnd | ./makesense --type dot | dot -Tpng -o assets/c.png`
 
 ![assets/c.png](assets/c.png)
+
+This project's makefile:
+
+![assets/this.png](assets/this.png)
