@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -14,14 +15,20 @@ import (
 	"github.com/goccy/go-graphviz/cgraph"
 )
 
+var (
+	outputFlag = flag.String("type", "dot", "The type of output for makesense to produce, supported: [`list`, `dot`, `gviz`]")
+)
+
 func main() {
+	flag.Parse()
 	g := &MakesenseGraph{
 		targets: map[string]*target{},
 	}
 	scanner := bufio.NewScanner(os.Stdin)
 	root := g.GetTarget("<ROOT>")
 	g.GraphScan(root, scanner, 0)
-	g.dump(gv)
+	outputType := stringToOutputType[*outputFlag]
+	g.dump(outputType)
 }
 
 func targetNameFromLine(line string) string {
@@ -29,7 +36,7 @@ func targetNameFromLine(line string) string {
 	if start == -1 {
 		start = strings.Index(line, "'")
 		if start == -1 {
-			log.Fatal("ohno")
+			log.Fatalf("Cannot find the start of the target name in line: %s", line)
 		}
 	}
 	end := strings.Index(line[start+1:], "'") + start + 1
@@ -123,10 +130,27 @@ const (
 	none OutputType = iota
 	list
 	dot
-	gv
+	gviz
 	SVG
 	gexf
 )
+
+var stringToOutputType = map[string]OutputType{
+	"none": none,
+	"dot":  dot,
+	"gv":   gviz,
+	"svg":  SVG,
+	"gexf": gexf,
+}
+
+func (o OutputType) String() string {
+	for k, v := range stringToOutputType {
+		if v == o {
+			return k
+		}
+	}
+	return ""
+}
 
 func (g MakesenseGraph) dump(o OutputType) {
 	switch o {
@@ -136,7 +160,7 @@ func (g MakesenseGraph) dump(o OutputType) {
 		g.dumpDot(os.Stdout)
 	case SVG:
 		g.dumpSvg(os.Stdout)
-	case gv:
+	case gviz:
 		g.dumpGv(os.Stdout)
 	default:
 		return
