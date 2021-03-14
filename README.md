@@ -4,13 +4,20 @@ Generate visualizations of makefile DAGs:
 
 Graphviz to svg:
 
-`make -f testdata/Makefile.1 -Bnd | ./makesense --type gv > assets/output.svg`
+`make -C testdata/basic -Bnd | ./makesense --type gv > assets/basic.svg`
 
-![assets/output.svg](assets/output.svg)
+![assets/basic.svg](assets/basic.svg)
+
+`make -C testdata/c -Bnd | ./makesense --type gv > assets/c.svg`
+
+![assets/c.svg](assets/c.svg)
 
 Dot:
 
-`make -f testdata/Makefile.1 -Bnd | ./makesense --type dot | dot -Tpng -o assets/output.png`
+`make -C testdata/basic -Bnd | ./makesense --type dot | dot -Tpng -o assets/basic.png`
 
-![assets/output.png](assets/output.png)
+![assets/basic.png](assets/basic.png)
 
+`make -C testdata/c -Bnd | ./makesense --type dot > assets/c.png | dot -Tpng -o assets/c.png`
+
+![assets/c.png](assets/c.png)
