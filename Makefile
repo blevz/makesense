@@ -1,12 +1,14 @@
+.PHONY: all build clean test
+
 all:: assets/basic.svg assets/c.svg assets/basic.png assets/c.png assets/this.png build test
 
 include makesense.mk
 
-assets: build
+assets:
 	mkdir -p assets
 
 assets/basic.svg: assets makesense
-	make -C testdata/basic -Bnd | ./makesense --type gv > assets/basic.svg
+	@MAKE -C testdata/basic -Bnd | ./makesense --type gv > assets/basic.svg
 
 assets/c.svg: assets makesense
 	make -C testdata/c -Bnd | ./makesense --type gv > assets/c.svg
@@ -20,12 +22,12 @@ assets/c.png: assets makesense
 assets/this.png: assets makesense
 	make -Bnd | ./makesense --type dot | dot -Tpng -o assets/this.png
 
-build:
+build: makesense
 
-makesense: build
+makesense: makesense.go makesense_test.go
 	go build ./...
 
-test:
+test: makesense_test.go
 	go test ./...
 
 clean::
