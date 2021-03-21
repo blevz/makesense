@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,6 +11,8 @@ import (
 	"strings"
 
 	svg "github.com/ajstarks/svgo"
+	"github.com/blevz/makesense/graphutil"
+	_ "github.com/blevz/makesense/graphutil"
 	"github.com/goccy/go-graphviz"
 	"github.com/goccy/go-graphviz/cgraph"
 )
@@ -224,13 +225,11 @@ func (m MakesenseGraph) dumpGraphViz(w io.Writer) {
 			}
 		}
 	}
-	g.SetLayout(graphviz.Layout(*layoutType))
-	renderFormat := graphviz.Format(*renderType)
-	var buf bytes.Buffer
-	if err := g.Render(graph, renderFormat, &buf); err != nil {
+	b, err := graphutil.ToSvg(graph, *layoutType, *renderType)
+	if err != nil {
 		log.Fatal(err)
 	}
-	w.Write(buf.Bytes())
+	w.Write(b)
 }
 
 func (g MakesenseGraph) dumpList(w io.Writer) {
