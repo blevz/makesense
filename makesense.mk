@@ -6,7 +6,7 @@ all:: .makesense/make.svg
 	mkdir -p .makesense
 
 .makesense/make.svg: .makesense makesense
-	make -Bnd | ./makesense --type gv > .makesense/make.svg
+	make -Bnd | ./bin/makesense --type gv > .makesense/make.svg
 
 .makesense_clean:
 	rm -rf .makesense

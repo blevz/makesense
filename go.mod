@@ -1,6 +1,6 @@
-module github.com/blevy/makesense
+module github.com/blevz/makesense
 
-go 1.15
+go 1.16
 
 require (
 	github.com/ajstarks/svgo v0.0.0-20200725142600-7a3c8b57fecb
